@@ -1,0 +1,27 @@
+import { Router } from "express";
+import { CheckAuth, isAdmin } from "../middleware/auth.js";
+import {
+  exportData,
+  getDashboardStats,
+  getRecentActivity,
+  getRevenueChart,
+  getRoomAlerts,
+  getRoomsByHotelStats,
+  getTopRooms,
+  getUserStats,
+} from "../handlers/admin.js";
+
+const adminRouter = Router();
+
+adminRouter.use(CheckAuth, isAdmin);
+
+adminRouter.get("/dashboard", getDashboardStats);
+adminRouter.get("/activity", getRecentActivity);
+adminRouter.get("/chart-revenue", getRevenueChart);
+adminRouter.get("/top-room", getTopRooms);
+adminRouter.get("/state-user", getUserStats);
+adminRouter.get("/alert-room", getRoomAlerts);
+adminRouter.get("/hotel-room", getRoomsByHotelStats);
+adminRouter.get("/export/:type", exportData);
+
+export default adminRouter;
