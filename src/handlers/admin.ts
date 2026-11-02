@@ -5,7 +5,13 @@ import roomModel from "../models/room.js";
 import bookingModel from "../models/booking.js";
 import rateModel from "../models/rating.js";
 import { logger } from "../utils/logger.js";
-import { errorResponse, successResponse } from "../utils/responseFormatter.js";
+import {
+  errorResponse,
+  paginatedResponse,
+  successResponse,
+} from "../utils/responseFormatter.js";
+import type { RequestWithParsedQuery } from "../types/express.js";
+import type { AdminRatingsQuery } from "../validation/rating.js";
 
 /**
  * Dashboard statistics (hotel)
@@ -200,6 +206,47 @@ export async function getRecentActivity(
       res,
       error,
       "Failed to fetch recent activity",
+      StatusCodes.INTERNAL_SERVER_ERROR,
+    );
+  }
+}
+
+export async function getAdminRatings(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  try {
+    const parsedReq = req as RequestWithParsedQuery<AdminRatingsQuery>;
+    const { page, limit } = parsedReq.parsedQuery;
+    const [ratings, total] = await Promise.all([
+      rateModel
+        .find()
+        .populate("ratedBy", "fullName displayName email avatar")
+        .populate("roomId", "title hotel price")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip((page - 1) * limit)
+        .lean(),
+      rateModel.countDocuments(),
+    ]);
+
+    paginatedResponse(
+      res,
+      ratings,
+      {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+      "Ratings fetched successfully",
+    );
+  } catch (error) {
+    logger.error("Error fetching admin ratings:", { error });
+    errorResponse(
+      res,
+      error,
+      "Failed to fetch ratings",
       StatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
