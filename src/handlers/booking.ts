@@ -16,6 +16,7 @@ import type {
 } from "../validation/booking.js";
 import { logger } from "../utils/logger.js";
 import { addDays } from "../utils/dateHelpers.js";
+import rateModel from "../models/rating.js";
 import {
   successResponse,
   errorResponse,
@@ -111,7 +112,7 @@ export async function getUserBookings(
     const filter: Record<string, unknown> = { user: userId };
     if (status) filter.status = status;
 
-    const [bookings, total] = await Promise.all([
+    const [bookings, total, ratings] = await Promise.all([
       bookingModel
         .find(filter)
         .populate({
@@ -124,11 +125,28 @@ export async function getUserBookings(
         .skip((page - 1) * limit)
         .lean(),
       bookingModel.countDocuments(filter),
+      rateModel.find({ ratedBy: userId }).select("roomId rating").lean(),
     ]);
+
+    const ratingsByRoom = new Map(
+      ratings.map(({ roomId, rating }) => [roomId.toString(), rating]),
+    );
+    const bookingsWithRatings = bookings.map((booking) => {
+      const roomId =
+        booking.room &&
+        typeof booking.room === "object" &&
+        "_id" in booking.room
+          ? String(booking.room._id)
+          : String(booking.room);
+      return {
+        ...booking,
+        myRating: ratingsByRoom.get(roomId),
+      };
+    });
 
     paginatedResponse(
       res,
-      bookings,
+      bookingsWithRatings,
       {
         total,
         page,

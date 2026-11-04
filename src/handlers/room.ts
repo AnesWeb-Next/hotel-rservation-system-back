@@ -310,17 +310,17 @@ export async function addRoomRating(
     const { rating } = req.body as { rating: number };
     const userId = authReq.user._id;
 
-    const hasStayed = await bookingModel.exists({
+    const hasCheckedOut = await bookingModel.exists({
       user: userId,
       room: roomId,
-      status: { $in: ["checked_out", "checked_in"] },
+      status: "checked_out",
     });
 
-    if (!hasStayed) {
+    if (!hasCheckedOut) {
       errorResponse(
         res,
         null,
-        "You can only rate rooms you have stayed in",
+        "You can only rate a room after checking out",
         StatusCodes.FORBIDDEN,
       );
       return;
@@ -331,33 +331,24 @@ export async function addRoomRating(
       roomId,
     });
 
-    let ratingDoc;
     if (existingRating) {
-      ratingDoc = await rateModel
-        .findByIdAndUpdate(
-          existingRating._id,
-          { $set: { rating } },
-          { new: true },
-        )
-        .populate("ratedBy", "fullName displayName avatar")
-        .lean();
-    } else {
-      ratingDoc = await rateModel.create({
-        ratedBy: userId,
-        roomId,
-        rating,
-      });
-      ratingDoc = await ratingDoc.populate(
-        "ratedBy",
-        "fullName displayName avatar",
+      errorResponse(
+        res,
+        null,
+        "You have already rated this room",
+        StatusCodes.CONFLICT,
       );
+      return;
     }
 
-    successResponse(
-      res,
-      ratingDoc,
-      existingRating ? "Rating updated" : "Rating added",
-    );
+    const ratingDoc = await rateModel.create({
+      ratedBy: userId,
+      roomId,
+      rating,
+    });
+    await ratingDoc.populate("ratedBy", "fullName displayName avatar");
+
+    successResponse(res, ratingDoc, "Rating added");
   } catch (error) {
     logger.error("Error adding room rating:", { error });
     const err = error as Error & { code?: number };
