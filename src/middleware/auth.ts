@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
+import { StatusCodes } from "http-status-codes";
 import userModel from "../models/user.js";
 import { AuthenticatedRequest } from "../types/express.js";
 import { errorResponse } from "../utils/responseFormatter.js";
@@ -73,7 +74,7 @@ export function isAdmin(req: Request, res: Response, next: NextFunction): void {
   if (authReq.user?.role === "admin") {
     next();
   } else {
-    res.status(401).json({
+    res.status(StatusCodes.FORBIDDEN).json({
       success: false,
       message: "You are not an admin, you can't access this route",
     });
