@@ -14,18 +14,23 @@ const app = express();
 
 // middlewares
 app.use(helmet());
-const allowedOrigins = (
-  process.env.FRONTEND_DOMAIN ||
-  "http://localhost:3000,http://localhost:3001,http://localhost:5173"
-)
-  .split(",")
-  .map((o) => o.trim());
+const localOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+];
+const allowedOrigins = new Set([
+  ...(process.env.FRONTEND_DOMAIN || localOrigins.join(","))
+    .split(",")
+    .map((origin) => origin.trim()),
+  ...(process.env.NODE_ENV === "development" ? localOrigins : []),
+]);
 
 app.use(
   cors({
     credentials: true,
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+      if (!origin || allowedOrigins.has(origin)) callback(null, true);
       else callback(new Error(`Cors: origin ${origin} not allowed`));
     },
   }),
